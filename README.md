@@ -24,8 +24,8 @@
 
 ---
 
-- **4.9 ns** to walk a price level, whether the book is dense or spread across 65,536 ticks
-- **8.1 ns** per fill when sweeping a deep queue
+- **3.5 ns** to walk a price level, whether the book is dense or spread across 65,536 ticks
+- **5.9 ns** per fill when sweeping a deep queue
 - **Zero dependencies** and zero allocation after construction, in both languages
 - **2.7M randomized operations** checked against models that share no code with the engine
 
@@ -93,31 +93,32 @@ end-to-end exchange latency.
 
 | Scenario | Rust | C++ |
 |---|---:|---:|
-| Set level + cached BBO | 6.98 ns | **6.20 ns** |
-| Walk top 10 sparse levels | 4.77 ns/level | 4.84 ns/level |
-| Walk top 1,000 sparse levels | 5.03 ns/level | **4.94 ns/level** |
-| VWAP across 1,000 sparse levels | 4.42 ns/level | **4.17 ns/level** |
+| Set level + cached BBO | **4.13 ns** | 5.44 ns |
+| Walk top 10 sparse levels | **3.52 ns/level** | 4.45 ns/level |
+| Walk top 1,000 sparse levels | **3.86 ns/level** | 4.49 ns/level |
+| VWAP across 1,000 sparse levels | **3.50 ns/level** | 3.84 ns/level |
 
-1,000 levels spread across the full 65,536-tick domain: **4.9 ns each**, against 4.8 ns
+1,000 levels spread across the full 65,536-tick domain: **3.9 ns each**, against 3.5 ns
 for 10 adjacent. Spreading the book out is close to free — the property the bitmap
-exists to provide. Both languages land within a few percent, so the structure sets the
-cost, not the compiler.
+exists to provide.
 
 #### L3 order-by-order book and matching
 
 | Scenario | Rust | C++ |
 |---|---:|---:|
-| Passive insert + BBO read | 11.08 ns | **7.08 ns** |
-| Match 1 resting maker | 20.90 ns/fill | **18.26 ns/fill** |
-| Match 64 resting makers | 11.57 ns/fill | **8.11 ns/fill** |
-| Sweep 1,000 sparse levels | 23.60 ns/fill | **18.90 ns/fill** |
+| Passive insert + BBO read | **5.27 ns** | 6.79 ns |
+| Match 1 resting maker | **10.84 ns/fill** | 17.97 ns/fill |
+| Match 64 resting makers | **5.86 ns/fill** | 7.47 ns/fill |
+| Sweep 1,000 sparse levels | **15.30 ns/fill** | 18.00 ns/fill |
 
 > **Two reports, not a language benchmark.** The harnesses were written independently.
 > Amend, cancel and replace are absent for that reason: the C++ harness visits resting
 > orders in a random permutation, the Rust one in insertion order, so C++ absorbs cache
-> misses Rust never sees. Per-language tables with percentiles in
-> [`rust/README.md`](rust/README.md) and [`cpp/README.md`](cpp/README.md); method in
-> [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
+> misses Rust never sees. The rows above walk the book the same way in both, so the
+> 20–40% Rust lead in them is a real difference — most likely LLVM against MSVC, since
+> the same C++ source narrows the gap under GCC in a sibling project. Per-language
+> tables with percentiles in [`rust/README.md`](rust/README.md) and
+> [`cpp/README.md`](cpp/README.md); method in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
 
 ## Verification
 
