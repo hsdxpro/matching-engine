@@ -44,7 +44,11 @@ enum class RejectReason : std::uint8_t {
 };
 
 [[nodiscard]] constexpr std::size_t side_index(const Side side) noexcept {
-    return std::to_underlying(side);
+    // `std::to_underlying` says this in one word, but it is C++23, which MSVC
+    // offers only as a preview mode. This is the C++20 spelling of the same
+    // cast, and C++20 is the newest standard all three compilers implement
+    // properly.
+    return static_cast<std::underlying_type_t<Side>>(side);
 }
 
 [[nodiscard]] constexpr Side opposite(const Side side) noexcept {

@@ -14,7 +14,7 @@ option(BX_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 # `-DBX_MODULE=ON` compiles and tests through `bitmap_exchange.cppm` instead.
 option(BX_MODULE "Also build and test the C++ module interface" OFF)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 

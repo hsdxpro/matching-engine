@@ -2,12 +2,12 @@
 
 <p align="center">
   A limit order book and price-time matching engine on a bitmap price ladder.<br>
-  Implemented twice, in safe Rust and in C++23, and verified against independent reference models.
+  Implemented twice, in safe Rust and in C++20, and verified against independent reference models.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/rust-1.97.1-000000?logo=rust" alt="Rust 1.97.1">
-  <img src="https://img.shields.io/badge/C%2B%2B-23-00599C?logo=cplusplus" alt="C++23">
+  <img src="https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus" alt="C++20">
   <img src="https://img.shields.io/badge/dependencies-0-success" alt="Zero dependencies">
   <img src="https://img.shields.io/badge/unsafe-forbidden-success" alt="Forbid unsafe">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
@@ -56,7 +56,7 @@ ctest --test-dir build -C Release
 ```
 
 Then `./build/Release/bx_bench`.
-Needs CMake 3.24+ and a C++23 compiler.
+Needs CMake 3.24+ and a C++20 compiler.
 
 </td></tr>
 </table>
