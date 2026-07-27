@@ -1,0 +1,24 @@
+# Rust
+/rust/target/
+
+# C++
+/cpp/build/
+/cpp/build-*/
+/cpp/out/
+*.obj
+*.pdb
+*.ilk
+*.exe
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+
+# Editors
+.vs/
+.vscode/
+.idea/
+*.user
