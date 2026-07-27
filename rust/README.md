@@ -14,8 +14,7 @@ cargo run --release --bin bx-bench
 ```
 
 That is the whole thing. It runs all 43 verification groups, prints each as `PASS` or
-`FAIL`, and only then measures. A failed check aborts before any number is reported —
-a benchmark from an engine that fails a correctness check is worthless.
+`FAIL`, and only then measures. A failed check aborts before any number is reported.
 
 Add `--quick` for a one-second run, or `--bench-only` to skip verification.
 
@@ -46,16 +45,17 @@ hidden behind `cfg(test)`, so the shipped binary and `cargo test` execute identi
 | Deterministic replay, pinned to a golden hash | 100,000 |
 | Engine line coverage | 97.74% |
 
-The randomized groups are differential tests against reference models built from completely
-different primitives — `BTreeMap` plus plain FIFO vectors, against the engine's bitmap
-ladder over a fixed slot arena. Agreement is evidence both are right; it does not define
-what right means. Every operation compares reject reason, fill sequence, queue order, BBO,
-level aggregates, state hash and free-list integrity exactly.
+The randomized groups are differential tests against reference models built from entirely
+different primitives: `BTreeMap` plus plain FIFO vectors, set against the engine's bitmap
+ladder over a fixed slot arena. Agreement between them is evidence that both are correct,
+though it cannot define what correct means. Every operation compares reject reason, fill
+sequence, queue order, BBO, level aggregates, state hash and free-list integrity exactly.
 
 ## Benchmarks
 
-Windows 11, Rust 1.97.1 release, no CPU pinning, three runs. Batch-normalized service times
-over cache-resident data — not tail latency, not end-to-end exchange latency.
+Windows 11, Rust 1.97.1 release, no CPU pinning, three runs. These are batch-normalized
+service times over cache-resident data, not tail latency and not end-to-end exchange
+latency.
 
 | Scenario | p50 | Per item |
 |---|---:|---:|
@@ -72,13 +72,13 @@ over cache-resident data — not tail latency, not end-to-end exchange latency.
 | L3 sweep 1,000 sparse levels | 23.60 µs | **23.60 ns/fill** |
 | Mixed order-entry stream | 51.22 ns | 51.22 ns/message |
 
-Read the per-item column: 1,000 levels spread across the full 65,536-tick domain cost
-5.03 ns each against 4.77 ns for 10 adjacent ones. One fill costs 20.90 ns, sixty-four cost
-11.57 ns each.
+Read the per-item column. A thousand levels spread across the full 65,536-tick domain cost
+5.03 ns each, against 4.77 ns for ten adjacent ones. One fill costs 20.90 ns; sixty-four
+cost 11.57 ns each.
 
-† These three walk resting orders in **insertion order**, so they are cache-friendly in a
-way the corresponding C++ rows are not — those visit a random permutation. The rows are not
-comparable across languages.
+† These three walk resting orders in **insertion order**, which is cache-friendly in a way
+the corresponding C++ rows are not, since those visit a random permutation. The rows cannot
+be compared across languages.
 
 Method in [`../docs/BENCHMARKS.md`](../docs/BENCHMARKS.md).
 

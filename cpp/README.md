@@ -41,19 +41,20 @@ ctest --test-dir build -C Release
 | `bx_test_module` | The module interface — only when `BX_MODULE=ON` |
 
 `bx_test_differential` carries the weight. It drives the engine and a model built from
-`std::map` plus plain FIFO vectors — sharing no code with the engine — through 1.6 million
-randomized commands, comparing reject reason, fill sequence, queue order, best bid and ask,
-level aggregates, a state hash and free-list integrity after **every** operation. Plus 864
-exhaustive maker/taker/TIF combinations and a 100,000-command replay pinned to a golden
-hash.
+`std::map` plus plain FIFO vectors, sharing no code with the engine, through 1.6 million
+randomized commands. After **every** operation it compares reject reason, fill sequence,
+queue order, best bid and ask, level aggregates, a state hash and free-list integrity. It
+also runs 864 exhaustive maker/taker/TIF combinations and a 100,000-command replay pinned to
+a golden hash.
 
-Engine-header line coverage is **96.80%**. The remainder is invariant-failure branches
-reachable only by deliberately corrupting private state.
+Engine-header line coverage is **96.80%**. What remains uncovered is invariant-failure
+branches, which can only be reached by corrupting private state on purpose.
 
 ## Benchmarks
 
-Windows 11, MSVC 19.44 release, no CPU pinning, three runs. Batch-normalized service times
-over cache-resident data — not tail latency, not end-to-end exchange latency.
+Windows 11, MSVC 19.44 release, no CPU pinning, three runs. These are batch-normalized
+service times over cache-resident data, not tail latency and not end-to-end exchange
+latency.
 
 | Scenario | p50 | p99 | Per item |
 |---|---:|---:|---:|
@@ -70,12 +71,14 @@ over cache-resident data — not tail latency, not end-to-end exchange latency.
 | L3 sweep 1,000 sparse levels | 18.90 µs | 23.30 µs | **18.90 ns/fill** |
 | Mixed order-entry stream | 24.12 ns | 36.08 ns | 24.12 ns/message |
 
-Read the per-item column: 1,000 levels spread across the full domain cost 4.94 ns each
-against 4.84 ns for 10 adjacent ones. One fill costs 18.26 ns, sixty-four cost 8.11 ns each.
+Read the per-item column. A thousand levels spread across the full domain cost 4.94 ns
+each, against 4.84 ns for ten adjacent ones. One fill costs 18.26 ns; sixty-four cost
+8.11 ns each.
 
-† These three visit resting orders in a **random permutation**, so they carry cache misses a
-sequential walk would not. Deliberate — it is closer to how a real book is amended — but it
-means they are not comparable against the Rust rows, which walk in insertion order.
+† These three visit resting orders in a **random permutation**, so they carry cache misses
+that a sequential walk would avoid. That is intentional, since it is closer to how a real
+book gets amended, but it does mean they cannot be compared against the Rust rows, which
+walk in insertion order.
 
 Method in [`../docs/BENCHMARKS.md`](../docs/BENCHMARKS.md).
 
@@ -83,31 +86,31 @@ Method in [`../docs/BENCHMARKS.md`](../docs/BENCHMARKS.md).
 
 Both were decided on merits rather than adopted for the label.
 
-**The engine is C++23 by standard and overwhelmingly C++20 by feature use.** What it needs
-is `<bit>` — `countl_zero` and `countr_zero` are the bitmap's inner loop — and
-`[[likely]]`/`[[unlikely]]` on the matching path. Of the headline C++23 additions exactly
-one earns its place: `std::to_underlying`, replacing a `static_cast` whose target type had
-to be kept in sync by hand.
+**The engine is C++23 by standard setting and overwhelmingly C++20 by feature use.** What
+it actually needs is `<bit>`, since `countl_zero` and `countr_zero` are the bitmap's inner
+loop, plus `[[likely]]` and `[[unlikely]]` on the matching path. Of the headline C++23
+additions, one earns its place: `std::to_underlying`, replacing a `static_cast` whose target
+type had to be kept in sync by hand.
 
 The others were examined and rejected:
 
-- **`std::expected` does not fit.** `SubmitResult` is not an either/or — an
-  immediate-or-cancel order can partially fill *and* be rejected, so it must carry fills and
-  a reject reason together. Forcing it into `expected` would lose information.
+- **`std::expected` does not fit.** `SubmitResult` is not an either/or. An
+  immediate-or-cancel order can partially fill *and* be rejected, so the result has to carry
+  fills and a reject reason together, and forcing it into `expected` would lose information.
 - **Deducing-this has nothing to simplify.** The duplicated accessor names in this header
-  belong to two different classes, not to const and non-const overloads of one.
+  belong to two different classes rather than to const and non-const overloads of one.
 
-Adding either would have grown the code to look modern while making it worse.
+Adopting either would have made the code look more modern and read worse.
 
 **Modules are provided, but not as the only front door.** `bitmap_exchange.cppm` wraps the
-header and exports the same names; `-DBX_MODULE=ON` builds it plus `tests/test_module.cpp`,
-which reaches the engine through `import` and never includes the header — so a missing
-export fails the build.
+header and exports the same names. `-DBX_MODULE=ON` builds it along with
+`tests/test_module.cpp`, which reaches the engine through `import` and never includes the
+header, so a missing export shows up as a build failure.
 
-Off by default for one reason: portability. MSVC's support is solid and Clang's is workable
-from 17, but GCC's remains incomplete enough that a modules-only library would fail to
-build for a large share of anyone who cloned this. A header that works everywhere beats a
-module that works impressively in some places. Same arrangement `fmt` ships.
+It is off by default for portability. MSVC's support is solid and Clang's is workable from
+17, but GCC's remains incomplete enough that a modules-only library would fail to build for
+a large share of anyone cloning this repository. Shipping the header as the default keeps
+the library buildable everywhere, which is the same arrangement `fmt` uses.
 
 ## Layout
 

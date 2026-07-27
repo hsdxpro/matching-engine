@@ -2,7 +2,7 @@
 
 <p align="center">
   A limit order book and price-time matching engine on a bitmap price ladder.<br>
-  Implemented twice — safe Rust and C++23 — and verified against independent reference models.
+  Implemented twice, in safe Rust and in C++23, and verified against independent reference models.
 </p>
 
 <p align="center">
@@ -62,16 +62,15 @@ Needs CMake 3.24+ and a C++23 compiler.
 </table>
 
 The Rust binary runs all 43 correctness groups before it measures anything, and aborts
-without printing a number if one fails — a benchmark from an engine that fails a check is
-worthless.
+without printing a number if any of them fail.
 
 ## How it works
 
-A real book is sparse. Prices cluster at the touch and thin out fast, so any structure that
-walks *price space* to find the next level pays for the emptiness between levels.
+A real book is sparse. Prices cluster at the touch and thin out quickly, so any structure
+that walks *price space* to find the next level pays for the emptiness between levels.
 
 This one walks *occupancy* instead. The ladder is 65,536 ticks of flat array with three
-tiers of `u64` summary words above it — one bit per tick, one per 64-tick block, one per
+tiers of `u64` summary words above it: one bit per tick, one per 64-tick block, one per
 4,096-tick block, under a single 64-bit root.
 
 ```
@@ -81,15 +80,15 @@ tier 1  1,024 words  ─ ─ ─ ─ ─ ─ ─ ─    65,536 bits
 ladder  65,536 price levels
 ```
 
-Best price is three `countl_zero` instructions and a load. The next occupied level away
-from the touch is the same. **Neither depends on how far the scan skips**, which is the
-whole design and what the benchmarks below measure.
+Best price is three `countl_zero` instructions and a load. Finding the next occupied level
+away from the touch costs the same. **Neither depends on how far the scan skips**, which is
+what the benchmarks below are measuring.
 
 ## Benchmarks
 
-Both re-measured on one machine, back to back — Windows 11, release builds, no CPU pinning,
-three runs. Batch-normalized service times over cache-resident data: not tail latency, not
-end-to-end exchange latency.
+Both re-measured on one machine, back to back: Windows 11, release builds, no CPU pinning,
+three runs. These are batch-normalized service times over cache-resident data, not tail
+latency and not end-to-end exchange latency.
 
 #### L2 aggregated book
 
@@ -100,10 +99,10 @@ end-to-end exchange latency.
 | Walk top 1,000 sparse levels | 5.03 ns/level | **4.94 ns/level** |
 | VWAP across 1,000 sparse levels | 4.42 ns/level | **4.17 ns/level** |
 
-Walking 1,000 levels spread across the whole 65,536-tick domain costs **4.9 ns each** —
-against 4.8 ns for 10 adjacent levels. Spreading the book out costs nothing. That is the
-bitmap doing its job, and both languages land within a few percent, which says the data
-structure sets the cost rather than the compiler.
+Walking 1,000 levels spread across the whole 65,536-tick domain costs **4.9 ns each**,
+against 4.8 ns for 10 adjacent levels. Spreading the book out is close to free, which is the
+property the bitmap exists to provide. Both languages land within a few percent of each
+other, suggesting the data structure sets this cost rather than the compiler.
 
 #### L3 order-by-order book and matching
 
@@ -114,20 +113,20 @@ structure sets the cost rather than the compiler.
 | Match 64 resting makers | 11.57 ns/fill | **8.11 ns/fill** |
 | Sweep 1,000 sparse levels | 23.60 ns/fill | **18.90 ns/fill** |
 
-> **These are two reports, not a language benchmark.** The harnesses were written
-> independently. Amend, cancel and replace are left out of this table on purpose: the C++
-> harness visits resting orders in a random permutation and the Rust one in insertion
-> order, so C++ absorbs cache misses Rust never sees. Comparing those rows would measure
-> the benchmarks, not the engines. Full per-language tables with percentiles are in
-> [`rust/README.md`](rust/README.md) and [`cpp/README.md`](cpp/README.md); method in
+> **Treat this as two reports rather than a language benchmark.** The harnesses were
+> written independently. Amend, cancel and replace are missing from the table for that
+> reason: the C++ harness visits resting orders in a random permutation and the Rust one in
+> insertion order, so the C++ figures absorb cache misses the Rust figures never see.
+> Full per-language tables with percentiles are in [`rust/README.md`](rust/README.md) and
+> [`cpp/README.md`](cpp/README.md), and the method is in
 > [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
 
 ## Verification
 
 The randomized suites are **differential tests**. Each engine runs against a reference
-model built from deliberately different primitives — an ordered map plus plain FIFO vectors
-— that shares no code with it. Agreement is evidence both are right; it does not define
-what right means.
+model built from different primitives, an ordered map plus plain FIFO vectors, sharing no
+code with the engine. Agreement between them is evidence that both are correct, though it
+cannot define what correct means.
 
 | Check | Volume |
 |---|---:|
@@ -138,7 +137,7 @@ what right means.
 | Deterministic replay, pinned to a golden state hash | 100,000 |
 
 Every operation compares reject reason, fill sequence, queue order, best bid and ask, level
-aggregates, a state hash, and free-list integrity — exactly, not approximately.
+aggregates, a state hash and free-list integrity, exactly rather than approximately.
 
 | | Rust | C++ |
 |---|---|---|
@@ -161,25 +160,26 @@ docs/           Architecture, testing contract, benchmark method
 ## Behavioral contract
 
 Continuous, visible, single-instrument, price-time FIFO. Price priority precedes arrival
-priority. Executions occur at resting-maker prices. An amend that only reduces quantity
-keeps queue position; anything else is a cancel/replace with a new ID and new priority.
-Post-only rejects a crossing order rather than repricing it.
+priority and executions occur at resting-maker prices. An amend that only reduces quantity
+keeps its queue position; any other change is a cancel/replace with a new ID and new
+priority. Post-only rejects a crossing order instead of repricing it.
 
 These follow common exchange behavior as documented by CME, Coinbase Exchange and Nasdaq.
 
 ## Scope
 
-This is a matching **core**, not an exchange. No gateway, accounts, risk, journaling,
-market data, auctions, hidden orders, sharding, networking or failover — those surround a
-matching engine and are the harder half of a venue.
-[**exchange-core**](https://github.com/hsdxpro/exchange-core) builds them around an engine
-of this shape.
+This is a matching **core**, not an exchange. There is no gateway, no account state, no
+risk, journaling, market data, auctions, hidden orders, sharding, networking or failover.
+Those parts surround a matching engine and are the harder half of building a venue.
+[**exchange-core**](https://github.com/hsdxpro/exchange-core) implements them around an
+engine of this shape.
 
-Inside the core, several decisions are right for a bounded, verifiable engine and wrong for
-one taking real flow: order IDs are dense table indices, quantities are 32-bit and prices
-16-bit ticks, there is no participant identity and so no self-trade prevention, and market
-orders sweep to the domain extreme with no collar. Each, with its cost, is in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Several decisions inside the core are right for a bounded, verifiable engine and wrong for
+one taking real order flow. Order IDs are dense table indices, quantities are 32-bit and
+prices are 16-bit ticks, there is no participant identity and therefore no self-trade
+prevention, and market orders sweep to the domain extreme with no collar.
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) covers each one and what it would cost to
+change.
 
 ## License
 
