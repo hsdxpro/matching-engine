@@ -34,8 +34,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show toolchain
-        run: rustc --version && cargo --version
+      # The version comes from `rust-toolchain.toml`; the components are asked
+      # for explicitly. `rust-toolchain.toml` lists them, but rustup only
+      # acts on that when it installs the toolchain -- if the runner image
+      # already ships one, the manifest's components are never added, and the
+      # first `cargo fmt` fails with "not installed for the toolchain".
+      - name: Toolchain
+        run: |
+          rustup component add rustfmt clippy
+          rustc --version && cargo --version && cargo fmt --version
 
       # Downloads only, never `target/`: a stale build directory is how CI
       # comes to pass on artifacts that no longer match the source.
