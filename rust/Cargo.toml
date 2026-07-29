@@ -14,6 +14,13 @@ path = "src/lib.rs"
 name = "bx-bench"
 path = "src/bin/bench.rs"
 
+# `src/lib.rs` carries `#![forbid(unsafe_code)]`, but a crate-root attribute
+# only covers its own root -- the benchmark binary is a separate one, and for a
+# while it reached for `sched_setaffinity` through FFI while printing a header
+# that claimed otherwise. Stating it here covers every target in the package.
+[lints.rust]
+unsafe_code = "forbid"
+
 [profile.release]
 opt-level = 3
 lto = "fat"
