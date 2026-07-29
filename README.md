@@ -6,6 +6,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/hsdxpro/matching-engine/actions/workflows/ci.yml"><img src="https://github.com/hsdxpro/matching-engine/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
   <img src="https://img.shields.io/badge/rust-1.97.1-000000?logo=rust" alt="Rust 1.97.1">
   <img src="https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus" alt="C++20">
   <img src="https://img.shields.io/badge/dependencies-0-success" alt="Zero dependencies">
@@ -143,6 +144,10 @@ level aggregates, state hash and free-list integrity — exactly, not approximat
 | Memory safety | `#![forbid(unsafe_code)]` | no owning raw pointers, no manual `new`/`delete` |
 | Warnings | `clippy -D warnings` | `/W4 /WX`, `-Werror` |
 | Sanitizers | — | ASan + UBSan via `-DBX_SANITIZERS=ON` |
+
+Every push runs the same checks on Linux and Windows: format, clippy with
+warnings denied, the Rust suite, all 43 correctness groups, the C++ suites
+under MSVC and GCC, the module front door, and ASan/UBSan.
 
 Verified with MSVC 19.44 and Rust 1.97.1 on Windows 11. Detail in
 [`docs/TESTING.md`](docs/TESTING.md).

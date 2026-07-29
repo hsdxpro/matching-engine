@@ -1,0 +1,122 @@
+name: ci
+
+# The README's claim is that both implementations agree with reference models
+# that share no code with them. This runs that comparison on machines nobody
+# here owns.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: rust / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: rustc --version && cargo --version
+
+      # Downloads only, never `target/`: a stale build directory is how CI
+      # comes to pass on artifacts that no longer match the source.
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --release
+
+      # The benchmark binary verifies before it measures: all 43 correctness
+      # groups run first, and it refuses to print a number if any of them fail.
+      # `--quick` shortens the measured runs, not the checking.
+      - name: Correctness groups and benchmark
+        run: cargo run --release --bin bx-bench -- --quick
+
+  cpp:
+    name: c++ / ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, name: gcc }
+          - { os: windows-latest, name: msvc }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build cpp/build --config Release
+      - name: Test
+        run: ctest --test-dir cpp/build -C Release --output-on-failure
+
+  # The module interface is an alternative front door, not the only one, so it
+  # gets its own configure rather than being folded into the default build.
+  cpp-module:
+    name: c++ / module interface
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure with the module
+        run: cmake -S cpp -B cpp/build-module -DBX_MODULE=ON -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build cpp/build-module --config Release
+      - name: Test
+        run: ctest --test-dir cpp/build-module -C Release --output-on-failure
+
+  # Compiled directly rather than through the `BX_SANITIZERS` cmake option:
+  # the option adds the same flags, and driving the compiler here keeps the
+  # command in this file identical to the one that was run by hand to check it.
+  # `-fno-sanitize-recover=all` turns a sanitizer report into a failed exit
+  # status; without it a run reports and then passes.
+  cpp-sanitizers:
+    name: c++ / asan+ubsan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: AddressSanitizer and UndefinedBehaviorSanitizer
+        working-directory: cpp
+        run: |
+          set -euo pipefail
+          for suite in bitmap_l2 l3 differential; do
+            echo "::group::asan+ubsan $suite"
+            g++ -std=c++20 -O1 -g -pthread -I. -Itests \
+                -fsanitize=address,undefined -fno-sanitize-recover=all \
+                "tests/test_$suite.cpp" -o "/tmp/asan_$suite"
+            "/tmp/asan_$suite"
+            echo "::endgroup::"
+          done
