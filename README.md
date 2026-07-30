@@ -90,6 +90,11 @@ One machine, back to back: Windows 11, release builds, no pinning, three runs.
 Batch-normalized service times over cache-resident data — not tail latency, not
 end-to-end exchange latency.
 
+The benchmark reports the CPU affinity it was given rather than setting one. On
+Linux, `taskset -c <quiet core>` tightens the tails; self-pinning would take the
+lowest allowed CPU, which is usually the one carrying the timer and network
+interrupts.
+
 #### L2 aggregated book
 
 | Scenario | Rust | C++ |
@@ -141,7 +146,7 @@ level aggregates, state hash and free-list integrity — exactly, not approximat
 | | Rust | C++ |
 |---|---|---|
 | Line coverage | 97.74% | 96.80% |
-| Memory safety | `#![forbid(unsafe_code)]` | no owning raw pointers, no manual `new`/`delete` |
+| Memory safety | `unsafe_code = "forbid"`, package-wide | no owning raw pointers, no manual `new`/`delete` |
 | Warnings | `clippy -D warnings` | `/W4 /WX`, `-Werror` |
 | Sanitizers | — | ASan + UBSan via `-DBX_SANITIZERS=ON` |
 
